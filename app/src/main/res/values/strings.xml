@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">המשימות שלנו</string>
+    <string name="notification_channel_id">missions_default</string>
+    <string name="notification_channel_name">עדכוני משימות</string>
+</resources>

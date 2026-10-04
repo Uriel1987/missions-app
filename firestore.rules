@@ -1,0 +1,54 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function isMember() {
+      return request.auth != null &&
+        request.auth.uid in resource.data.memberIds;
+    }
+
+    // True only for the exact shape of a "join by invite code" update: the caller's
+    // uid is newly added to memberIds, no existing member is dropped, the household
+    // isn't already at its 2-member cap, and nothing else about the household (its
+    // code, its other members) is rewritten.
+    function isLegitimateJoin() {
+      let before = resource.data.memberIds;
+      let after = request.resource.data.memberIds;
+      return !(request.auth.uid in before) &&
+        request.auth.uid in after &&
+        before.size() < 2 &&
+        after.size() == before.size() + 1 &&
+        after.hasAll(before) &&
+        request.resource.data.inviteCode == resource.data.inviteCode;
+    }
+
+    match /households/{householdId} {
+      // Anyone signed in can read a household to look up an invite code / join it;
+      // tighten this if you want invite codes to not be guessable/enumerable.
+      allow read: if request.auth != null;
+      allow create: if request.auth != null;
+
+      // Only an existing member (e.g. refreshing their own FCM token) or someone
+      // legitimately joining via invite code may write here — NOT any signed-in
+      // stranger, who could otherwise hijack or vandalize someone else's household.
+      allow update: if isMember() || isLegitimateJoin();
+
+      match /tasks/{taskId} {
+        allow read, write: if request.auth != null &&
+          request.auth.uid in get(/databases/$(database)/documents/households/$(householdId)).data.memberIds;
+      }
+
+      // A task's photo (base64, already shrunk by the app) lives here, one doc per task,
+      // so the task list stays small. Same members-only access; the size cap keeps a
+      // modified client from stuffing huge payloads in.
+      match /images/{taskId} {
+        allow read, delete: if request.auth != null &&
+          request.auth.uid in get(/databases/$(database)/documents/households/$(householdId)).data.memberIds;
+        allow create, update: if request.auth != null &&
+          request.auth.uid in get(/databases/$(database)/documents/households/$(householdId)).data.memberIds &&
+          request.resource.data.data is string &&
+          request.resource.data.data.size() < 400000;
+      }
+    }
+  }
+}

@@ -1,0 +1,21 @@
+# Release signing — never commit (key lives in C:\Users\Riley\keys, passwords in ~/.gradle/gradle.properties)
+*.jks
+*.keystore
+keystore.properties
+key.properties
+
+# Firebase client config (re-download from the Firebase console if lost)
+google-services.json
+
+# Build outputs / IDE
+*.apk
+*.aab
+build/
+.gradle/
+.kotlin/
+local.properties
+.idea/
+*.iml
+captures/
+.externalNativeBuild/
+.cxx/
