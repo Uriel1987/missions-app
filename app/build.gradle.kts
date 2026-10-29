@@ -87,7 +87,8 @@ dependencies {
 
     // Local notifications: periodic background check + "is the app on screen?"
     implementation("androidx.work:work-runtime-ktx:2.9.1")
-    implementation("androidx.lifecycle:lifecycle-process:2.8.2")
+
+    testImplementation("junit:junit:4.13.2")
 
     // Coroutines <-> Firestore listener bridging
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-play-services:1.8.1")

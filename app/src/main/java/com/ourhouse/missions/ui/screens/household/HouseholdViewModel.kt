@@ -7,8 +7,10 @@ import com.ourhouse.missions.data.model.Household
 import com.ourhouse.missions.data.repository.AuthRepository
 import com.ourhouse.missions.data.repository.HouseholdRepository
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
@@ -29,6 +31,13 @@ class HouseholdViewModel(
 
     private val _state = MutableStateFlow(HouseholdState())
     val state: StateFlow<HouseholdState> = _state.asStateFlow()
+
+    val backgroundWatchEnabled: StateFlow<Boolean> = sessionManager.backgroundWatchEnabled
+        .stateIn(viewModelScope, SharingStarted.Eagerly, true)
+
+    fun setBackgroundWatch(enabled: Boolean) {
+        viewModelScope.launch { sessionManager.setBackgroundWatchEnabled(enabled) }
+    }
 
     init {
         viewModelScope.launch {

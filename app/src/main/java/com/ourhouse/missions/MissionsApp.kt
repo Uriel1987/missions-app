@@ -8,10 +8,12 @@ import androidx.work.PeriodicWorkRequestBuilder
 import androidx.work.WorkManager
 import com.ourhouse.missions.notifications.NotificationHelper
 import com.ourhouse.missions.notifications.TaskWatchWorker
+import com.ourhouse.missions.notifications.WatchService
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.flow.collectLatest
@@ -34,6 +36,18 @@ class MissionsApp : Application() {
         NotificationHelper.ensureChannel(this)
         scheduleBackgroundCheck()
         startLiveWatcher()
+        keepWatcherServiceInSync()
+    }
+
+    /** Runs the foreground service whenever this phone is paired and the user hasn't turned it off. */
+    private fun keepWatcherServiceInSync() {
+        appScope.launch {
+            combine(container.sessionManager.householdId, container.sessionManager.backgroundWatchEnabled) { id, enabled ->
+                id != null && enabled
+            }.distinctUntilChanged().collect { shouldRun ->
+                if (shouldRun) WatchService.start(this@MissionsApp) else WatchService.stop(this@MissionsApp)
+            }
+        }
     }
 
     /** Catches assignments made while this process wasn't alive to listen live. */

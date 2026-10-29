@@ -50,6 +50,11 @@ fun HomeScreen(
             HomeHeader(
                 filter = state.filter,
                 onFilterChange = viewModel::setFilter,
+                sort = state.sort,
+                onSortChange = viewModel::setSort,
+                showCompleted = state.showCompleted,
+                completedCount = state.completedCount,
+                onShowCompletedChange = viewModel::setShowCompleted,
                 onSettingsClick = { onNavigate(NavDestination.HOUSEHOLD) }
             )
 
@@ -64,7 +69,7 @@ fun HomeScreen(
                 }
             } else if (state.tasks.isEmpty()) {
                 Box(Modifier.fillMaxWidth().weight(1f), contentAlignment = Alignment.Center) {
-                    Text("אין משימות להצגה כרגע", color = TextMuted)
+                    Text(if (state.showCompleted) "עוד לא הושלמו משימות" else "אין משימות פעילות כרגע", color = TextMuted)
                 }
             } else {
                 LazyColumn(
@@ -73,7 +78,11 @@ fun HomeScreen(
                     modifier = Modifier.weight(1f)
                 ) {
                     items(state.tasks, key = { it.id }) { task ->
-                        TaskCard(task = task, onClick = { onOpenTask(task.id) })
+                        TaskCard(
+                            task = task,
+                            onClick = { onOpenTask(task.id) },
+                            onToggleDone = { viewModel.toggleCompleted(task) }
+                        )
                     }
                 }
             }
@@ -82,7 +91,16 @@ fun HomeScreen(
 }
 
 @Composable
-private fun HomeHeader(filter: HomeFilter, onFilterChange: (HomeFilter) -> Unit, onSettingsClick: () -> Unit) {
+private fun HomeHeader(
+    filter: HomeFilter,
+    onFilterChange: (HomeFilter) -> Unit,
+    sort: HomeSort,
+    onSortChange: (HomeSort) -> Unit,
+    showCompleted: Boolean,
+    completedCount: Int,
+    onShowCompletedChange: (Boolean) -> Unit,
+    onSettingsClick: () -> Unit
+) {
     Column(
         modifier = Modifier.fillMaxWidth().background(Surface).padding(20.dp, 22.dp, 20.dp, 16.dp),
         verticalArrangement = Arrangement.spacedBy(18.dp)
@@ -103,7 +121,37 @@ private fun HomeHeader(filter: HomeFilter, onFilterChange: (HomeFilter) -> Unit,
             SegmentButton("של בן/בת הזוג", filter == HomeFilter.PARTNER, Modifier.weight(1f)) { onFilterChange(HomeFilter.PARTNER) }
             SegmentButton("ללא שיוך", filter == HomeFilter.UNASSIGNED, Modifier.weight(1f)) { onFilterChange(HomeFilter.UNASSIGNED) }
         }
+
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            Text("מיון:", color = TextMuted, style = MaterialTheme.typography.labelMedium)
+            OptionChip("לפי תאריך", sort == HomeSort.DATE) { onSortChange(HomeSort.DATE) }
+            OptionChip("לפי דחיפות", sort == HomeSort.URGENCY) { onSortChange(HomeSort.URGENCY) }
+            Spacer(Modifier.weight(1f))
+            OptionChip(
+                if (completedCount > 0) "הושלמו ($completedCount)" else "הושלמו",
+                showCompleted
+            ) { onShowCompletedChange(!showCompleted) }
+        }
     }
+}
+
+@Composable
+private fun OptionChip(label: String, selected: Boolean, onClick: () -> Unit) {
+    Text(
+        label,
+        color = if (selected) Color.White else TextSecondary,
+        style = MaterialTheme.typography.labelMedium,
+        maxLines = 1,
+        modifier = Modifier
+            .clip(RoundedCornerShape(50))
+            .background(if (selected) AccentPrimary else Background)
+            .clickable(onClick = onClick)
+            .padding(horizontal = 12.dp, vertical = 7.dp)
+    )
 }
 
 @Composable

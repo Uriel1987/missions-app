@@ -2,6 +2,7 @@ package com.ourhouse.missions.ui.navigation
 
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.produceState
@@ -37,6 +38,8 @@ private object Routes {
     const val HOME = "home"
     const val ADD_TASK = "add_task"
     const val TASK_DETAIL = "task_detail/{taskId}"
+    const val EDIT_TASK = "edit_task/{taskId}"
+    fun editTask(id: String) = "edit_task/$id"
     const val NOTIFICATIONS = "notifications"
     const val HOUSEHOLD = "household"
     const val CATEGORIES = "categories"
@@ -105,6 +108,27 @@ fun MissionsNavGraph(container: AppContainer) {
         }
 
         composable(
+            Routes.EDIT_TASK,
+            arguments = listOf(navArgument("taskId") { type = NavType.StringType })
+        ) { backStackEntry ->
+            val taskId = backStackEntry.arguments?.getString("taskId") ?: return@composable
+            val vm: AddTaskViewModel = viewModel(factory = factory)
+            LaunchedEffect(taskId) { vm.loadForEdit(taskId) }
+            val household by rememberHousehold(container, householdId)
+            val myId = container.authRepository.currentUserId ?: ""
+            val partner = partnerOf(household, myId)
+            AddTaskScreen(
+                viewModel = vm,
+                myUserId = myId,
+                myName = displayName ?: "אני",
+                partnerId = partner?.first,
+                partnerName = partner?.second,
+                onSaved = { navController.popBackStack() },
+                onBack = { navController.popBackStack() }
+            )
+        }
+
+        composable(
             Routes.TASK_DETAIL,
             arguments = listOf(navArgument("taskId") { type = NavType.StringType })
         ) { backStackEntry ->
@@ -118,6 +142,7 @@ fun MissionsNavGraph(container: AppContainer) {
                 taskId = taskId,
                 partnerId = partner?.first ?: "",
                 partnerName = partner?.second ?: "בן/בת הזוג",
+                onEdit = { navController.navigate(Routes.editTask(taskId)) },
                 onBack = { navController.popBackStack() }
             )
         }

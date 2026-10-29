@@ -1,4 +1,4 @@
-﻿# המשימות שלנו — Missions App
+# המשימות שלנו — Missions App
 
 A native Android (Kotlin + Jetpack Compose) starter project for the shared couple's
 to-do app: tasks with urgency, optional category, optional assignee, optional due
@@ -82,17 +82,21 @@ it appear on the other.
 
 Sending a push needs a trusted server (a Cloud Function), which Firebase only allows
 on the paid Blaze plan. Instead each phone watches the shared task list itself and
-posts a local notification when a task is assigned to it or handed to it
-(`notifications/TaskNotifier`):
+posts a local notification whenever a task is assigned to it, created for it, edited
+onto it, or handed to it (`notifications/TaskNotifier`; every assignee change rewrites
+`Task.assignedBy/assignedAt`, which is what the other phone reacts to):
 
-- **Live:** while the app process is alive — even in the background — a Firestore
-  listener (`MissionsApp.startLiveWatcher`) notifies as soon as the change lands.
-- **Background check:** `TaskWatchWorker` re-checks about every 15 minutes (Android's
-  minimum for periodic work) for the times the process was killed.
-- **Trade-off:** if the app has been closed or force-stopped for a while, a
-  notification can arrive up to ~15 minutes late (and not at all while the phone is
-  offline). It is suppressed while the app is on screen, since the list is already
-  updating in front of you.
+- **Always-on watcher:** `WatchService` is a tiny foreground service (one silent,
+  low-priority notification) that keeps the app process alive, so the Firestore listener in
+  `MissionsApp.startLiveWatcher` notifies as soon as the change lands, even with the app
+  closed. It restarts after a reboot (`BootReceiver`). It can be switched off in the
+  "הבית שלנו" tab, which also shows whether notifications are allowed, whether battery
+  optimisation is restricting the app (it should be set to unrestricted), and has a
+  test-notification button.
+- **Safety net:** `TaskWatchWorker` re-checks about every 15 minutes (Android's minimum).
+- **Limits:** with no push server, a phone that is offline, force-stopped, or on a vendor
+  ROM that kills background apps aggressively can still be late. For true instant
+  delivery you would need a server that sends FCM pushes.
 
 ## Photos (no Firebase Storage)
 

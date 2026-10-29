@@ -61,7 +61,17 @@ fun AddTaskScreen(
                     Icon(Icons.Filled.ArrowForward, contentDescription = "חזרה", tint = TextPrimary)
                 }
                 Spacer(Modifier.width(12.dp))
-                Text("משימה חדשה", style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.ExtraBold))
+                Text(
+                    if (state.isEditing) "עריכת משימה" else "משימה חדשה",
+                    style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.ExtraBold)
+                )
+            }
+
+            if (state.isLoadingTask) {
+                Box(Modifier.weight(1f).fillMaxWidth(), contentAlignment = Alignment.Center) {
+                    CircularProgressIndicator(color = AccentPrimary)
+                }
+                return@Column
             }
 
             Column(
@@ -295,7 +305,7 @@ fun AddTaskScreen(
                 modifier = Modifier.fillMaxWidth().padding(20.dp).height(54.dp)
             ) {
                 if (state.isSaving) CircularProgressIndicator(modifier = Modifier.size(20.dp), color = androidx.compose.ui.graphics.Color.White)
-                else Text("שמירת משימה", style = MaterialTheme.typography.titleMedium)
+                else Text(if (state.isEditing) "שמירת שינויים" else "שמירת משימה", style = MaterialTheme.typography.titleMedium)
             }
         }
     }

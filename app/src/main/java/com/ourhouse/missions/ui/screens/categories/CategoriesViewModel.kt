@@ -5,6 +5,7 @@ import androidx.lifecycle.viewModelScope
 import com.ourhouse.missions.data.local.SessionManager
 import com.ourhouse.missions.data.model.Category
 import com.ourhouse.missions.data.model.Task
+import com.ourhouse.missions.data.repository.AuthRepository
 import com.ourhouse.missions.data.repository.TaskRepository
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -31,6 +32,7 @@ data class CategoriesState(
  *  instead of filtered by assignee, so it doesn't share state with [HomeViewModel]. */
 class CategoriesViewModel(
     private val taskRepository: TaskRepository,
+    private val authRepository: AuthRepository,
     private val sessionManager: SessionManager
 ) : ViewModel() {
 
@@ -50,8 +52,15 @@ class CategoriesViewModel(
         }
     }
 
+    fun toggleCompleted(task: Task) = viewModelScope.launch {
+        val householdId = sessionManager.householdId.first() ?: return@launch
+        val userId = authRepository.currentUserId ?: return@launch
+        taskRepository.setCompleted(householdId, task.id, userId, !task.completed)
+    }
+
+    /** Only active tasks — finished ones live under "הושלמו" on the Home screen. */
     private fun groupByCategory(tasks: List<Task>): List<CategoryGroup> {
-        val byKey = tasks.groupBy { it.category }
+        val byKey = tasks.filter { !it.completed }.groupBy { it.category }
 
         val builtIn = Category.entries.mapNotNull { category ->
             byKey[category.key]?.let { CategoryGroup(category, null, it) }

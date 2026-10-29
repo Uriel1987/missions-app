@@ -7,6 +7,7 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.outlined.CalendarToday
 import androidx.compose.material.icons.outlined.Category
 import androidx.compose.material.icons.outlined.PersonOutline
@@ -16,6 +17,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextDecoration
@@ -28,18 +30,38 @@ import java.text.SimpleDateFormat
 import java.util.Locale
 
 @Composable
-fun TaskCard(task: Task, onClick: () -> Unit, modifier: Modifier = Modifier) {
+fun TaskCard(task: Task, onClick: () -> Unit, modifier: Modifier = Modifier, onToggleDone: (() -> Unit)? = null) {
     val category = MissionCategory.fromKey(task.category)
 
     Row(
         modifier = modifier
             .fillMaxWidth()
+            .clip(RoundedCornerShape(20.dp))
             .clickable(onClick = onClick)
             .background(Surface, RoundedCornerShape(20.dp))
             .border(1.dp, Border, RoundedCornerShape(20.dp))
             .padding(15.dp),
-        horizontalArrangement = Arrangement.spacedBy(13.dp)
+        horizontalArrangement = Arrangement.spacedBy(13.dp),
+        verticalAlignment = Alignment.CenterVertically
     ) {
+        if (onToggleDone != null) {
+            Box(
+                modifier = Modifier
+                    .size(28.dp)
+                    .clip(CircleShape)
+                    .background(if (task.completed) AccentPrimary else Surface)
+                    .border(2.dp, if (task.completed) AccentPrimary else TextMuted, CircleShape)
+                    .clickable(onClick = onToggleDone),
+                contentAlignment = Alignment.Center
+            ) {
+                if (task.completed) {
+                    Icon(Icons.Filled.Check, contentDescription = "החזרה למשימות פעילות", tint = Color.White, modifier = Modifier.size(18.dp))
+                } else {
+                    Icon(Icons.Filled.Check, contentDescription = "סימון כבוצעה", tint = Color.Transparent, modifier = Modifier.size(18.dp))
+                }
+            }
+        }
+
         // Category icon chip stands in for the task's category — deliberately not a
         // colored left border, to keep the card from reading as generic AI-template UI.
         Box(

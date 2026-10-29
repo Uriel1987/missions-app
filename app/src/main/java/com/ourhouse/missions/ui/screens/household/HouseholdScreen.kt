@@ -4,13 +4,25 @@ import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
 import android.content.Intent
+import android.net.Uri
+import android.os.PowerManager
+import android.provider.Settings
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.Share
+import androidx.compose.material.icons.filled.Warning
+import androidx.core.app.NotificationManagerCompat
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
+import androidx.compose.ui.platform.LocalLifecycleOwner
+import com.ourhouse.missions.notifications.NotificationHelper
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -55,7 +67,7 @@ fun HouseholdScreen(
                     Text(errorMessage, color = UrgentText, style = MaterialTheme.typography.bodyMedium)
                 }
                 else -> Column(
-                    modifier = Modifier.padding(20.dp).fillMaxSize(),
+                    modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(20.dp),
                     verticalArrangement = Arrangement.spacedBy(20.dp)
                 ) {
                     val household = state.household
@@ -109,7 +121,8 @@ fun HouseholdScreen(
                         }
                     }
 
-                    Spacer(Modifier.weight(1f))
+                    val watchEnabled by viewModel.backgroundWatchEnabled.collectAsState()
+                    NotificationHealthCard(watchEnabled = watchEnabled, onWatchToggle = viewModel::setBackgroundWatch)
 
                     OutlinedButton(
                         onClick = { showLeaveConfirm = true },
@@ -134,6 +147,88 @@ fun HouseholdScreen(
             },
             dismissButton = { TextButton(onClick = { showLeaveConfirm = false }) { Text("ביטול") } }
         )
+    }
+}
+
+/** Shows whether this phone can actually receive assignment notifications, and fixes for each way it can't. */
+@Composable
+private fun NotificationHealthCard(watchEnabled: Boolean, onWatchToggle: (Boolean) -> Unit) {
+    val context = LocalContext.current
+
+    // Re-check whenever the user comes back from a system settings screen.
+    var refresh by remember { mutableIntStateOf(0) }
+    val lifecycleOwner = LocalLifecycleOwner.current
+    DisposableEffect(lifecycleOwner) {
+        val observer = LifecycleEventObserver { _, event -> if (event == Lifecycle.Event.ON_RESUME) refresh++ }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
+    }
+    val notificationsOn = remember(refresh) { NotificationManagerCompat.from(context).areNotificationsEnabled() }
+    val batteryUnrestricted = remember(refresh) {
+        context.getSystemService(PowerManager::class.java).isIgnoringBatteryOptimizations(context.packageName)
+    }
+
+    Column(
+        modifier = Modifier.fillMaxWidth().background(Surface, RoundedCornerShape(20.dp)).border(1.dp, Border, RoundedCornerShape(20.dp)).padding(18.dp),
+        verticalArrangement = Arrangement.spacedBy(14.dp)
+    ) {
+        Text("התראות על משימות חדשות", style = MaterialTheme.typography.labelLarge, color = TextPrimary)
+
+        HealthRow(
+            ok = notificationsOn,
+            text = if (notificationsOn) "התראות מותרות במכשיר" else "ההתראות חסומות למכשיר הזה",
+            actionLabel = if (notificationsOn) null else "פתיחת הגדרות"
+        ) {
+            context.startActivity(
+                Intent(Settings.ACTION_APP_NOTIFICATION_SETTINGS)
+                    .putExtra(Settings.EXTRA_APP_PACKAGE, context.packageName)
+                    .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            )
+        }
+
+        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+            Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                Text("האזנה ברקע (מומלץ)", style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Bold, color = TextPrimary)
+                Text(
+                    "מציג סמל קטן קבוע בשורת ההתראות, ובתמורה ההתראות מגיעות מיד גם כשהאפליקציה סגורה.",
+                    style = MaterialTheme.typography.labelMedium, color = TextMuted
+                )
+            }
+            Switch(checked = watchEnabled, onCheckedChange = onWatchToggle, colors = SwitchDefaults.colors(checkedTrackColor = AccentPrimary))
+        }
+
+        HealthRow(
+            ok = batteryUnrestricted,
+            text = if (batteryUnrestricted) "אין הגבלת סוללה על האפליקציה" else "הסוללה עלולה לעצור את האפליקציה כשהמסך כבוי",
+            actionLabel = if (batteryUnrestricted) null else "ביטול ההגבלה"
+        ) {
+            runCatching {
+                context.startActivity(
+                    Intent(Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS, Uri.parse("package:${context.packageName}"))
+                        .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                )
+            }
+        }
+
+        OutlinedButton(
+            onClick = { NotificationHelper.show(context, "התראת ניסיון", "אם אתם רואים את זה — ההתראות עובדות במכשיר הזה", notificationId = 1) },
+            shape = RoundedCornerShape(12.dp),
+            modifier = Modifier.fillMaxWidth()
+        ) { Text("שליחת התראת ניסיון", color = AccentPrimary) }
+    }
+}
+
+@Composable
+private fun HealthRow(ok: Boolean, text: String, actionLabel: String?, onAction: () -> Unit) {
+    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+        Icon(
+            if (ok) Icons.Filled.CheckCircle else Icons.Filled.Warning,
+            contentDescription = null,
+            tint = if (ok) AccentPrimary else UrgentText,
+            modifier = Modifier.size(20.dp)
+        )
+        Text(text, style = MaterialTheme.typography.bodyMedium, color = TextPrimary, modifier = Modifier.weight(1f))
+        if (actionLabel != null) TextButton(onClick = onAction) { Text(actionLabel, color = AccentPrimary) }
     }
 }
 

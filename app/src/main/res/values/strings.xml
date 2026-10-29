@@ -3,4 +3,6 @@
     <string name="app_name">המשימות שלנו</string>
     <string name="notification_channel_id">missions_default</string>
     <string name="notification_channel_name">עדכוני משימות</string>
+    <string name="watch_channel_name">האזנה ברקע</string>
+    <string name="watch_service_text">מאזין למשימות חדשות</string>
 </resources>

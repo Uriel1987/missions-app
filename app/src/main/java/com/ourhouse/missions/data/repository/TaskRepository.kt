@@ -66,7 +66,7 @@ class TaskRepository(private val firestore: FirebaseFirestore) {
     suspend fun addTask(householdId: String, task: Task, imageBase64: String? = null): Result<String> = runCatching {
         val doc = tasksCollection(householdId).document()
         val batch = firestore.batch()
-        batch.set(doc, task.copy(id = doc.id, hasImage = imageBase64 != null))
+        batch.set(doc, task.copy(id = doc.id, hasImage = imageBase64 != null, imageRev = System.currentTimeMillis()))
         if (imageBase64 != null) {
             batch.set(imagesCollection(householdId).document(doc.id), mapOf("data" to imageBase64))
         }
@@ -89,17 +89,63 @@ class TaskRepository(private val firestore: FirebaseFirestore) {
         fromUserId: String,
         fromUserName: String?,
         toUserId: String,
+        toUserName: String?,
         message: String?
-    ): Result<Unit> = updateTask(
-        householdId, taskId,
-        mapOf(
-            "assigneeId" to toUserId,
-            "lastHandoffFrom" to fromUserId,
-            "lastHandoffFromName" to fromUserName,
-            "lastHandoffMessage" to message,
-            "lastHandoffAt" to Date()
+    ): Result<Unit> {
+        val now = Date()
+        return updateTask(
+            householdId, taskId,
+            mapOf(
+                "assigneeId" to toUserId,
+                "assigneeName" to toUserName,
+                "assignedBy" to fromUserId,
+                "assignedByName" to fromUserName,
+                "assignedAt" to now,
+                "lastHandoffFrom" to fromUserId,
+                "lastHandoffFromName" to fromUserName,
+                "lastHandoffMessage" to message,
+                "lastHandoffAt" to now
+            )
         )
-    )
+    }
+
+    suspend fun getTask(householdId: String, taskId: String): Task? = runCatching {
+        tasksCollection(householdId).document(taskId).get().await().toObject(Task::class.java)
+    }.getOrNull()
+
+    /** What to do with the stored photo when saving an edit. */
+    sealed interface ImageChange {
+        data object Keep : ImageChange
+        data object Remove : ImageChange
+        data class Replace(val base64: String) : ImageChange
+    }
+
+    /** Saves an edit to the task and, if needed, its photo, in one atomic batch. */
+    suspend fun editTask(
+        householdId: String,
+        taskId: String,
+        updates: Map<String, Any?>,
+        image: ImageChange
+    ): Result<Unit> = runCatching {
+        val batch = firestore.batch()
+        val fields = updates.toMutableMap()
+        when (image) {
+            ImageChange.Keep -> {}
+            ImageChange.Remove -> {
+                fields["hasImage"] = false
+                fields["imageRev"] = System.currentTimeMillis()
+                batch.delete(imagesCollection(householdId).document(taskId))
+            }
+            is ImageChange.Replace -> {
+                fields["hasImage"] = true
+                fields["imageRev"] = System.currentTimeMillis()
+                batch.set(imagesCollection(householdId).document(taskId), mapOf("data" to image.base64))
+            }
+        }
+        batch.update(tasksCollection(householdId).document(taskId), fields)
+        batch.commit().await()
+        Unit
+    }
 
     suspend fun setCompleted(householdId: String, taskId: String, byUserId: String, completed: Boolean): Result<Unit> =
         updateTask(

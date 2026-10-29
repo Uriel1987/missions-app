@@ -9,12 +9,19 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowForward
+import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Link
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -35,10 +42,13 @@ fun TaskDetailScreen(
     taskId: String,
     partnerId: String,
     partnerName: String,
+    onEdit: () -> Unit,
     onBack: () -> Unit
 ) {
     val state by viewModel.state.collectAsState()
+    var showDeleteConfirm by remember { mutableStateOf(false) }
     LaunchedEffect(taskId) { viewModel.load(taskId) }
+    LaunchedEffect(state.deleted) { if (state.deleted) onBack() }
 
     val task = state.task ?: run {
         val errorMessage = state.errorMessage
@@ -61,6 +71,12 @@ fun TaskDetailScreen(
                 }
                 Spacer(Modifier.width(12.dp))
                 Text("פרטי משימה", style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.ExtraBold), modifier = Modifier.weight(1f))
+                IconButton(onClick = onEdit) {
+                    Icon(Icons.Filled.Edit, contentDescription = "עריכת משימה", tint = TextSecondary)
+                }
+                IconButton(onClick = { showDeleteConfirm = true }) {
+                    Icon(Icons.Filled.Delete, contentDescription = "מחיקת משימה", tint = UrgentText)
+                }
             }
 
             Column(
@@ -72,8 +88,31 @@ fun TaskDetailScreen(
                         UrgencyBadge(task.urgencyEnum)
                         Category.fromKey(task.category)?.let { CategoryChip(it) }
                     }
-                    Text(task.title, style = MaterialTheme.typography.titleLarge, color = TextPrimary)
+                    Text(
+                        task.title, style = MaterialTheme.typography.titleLarge,
+                        color = if (task.completed) TextMuted else TextPrimary,
+                        textDecoration = if (task.completed) TextDecoration.LineThrough else null
+                    )
                     if (task.note.isNotBlank()) Text(task.note, style = MaterialTheme.typography.bodyMedium, color = TextSecondary)
+                }
+
+                if (task.completed) {
+                    OutlinedButton(
+                        onClick = viewModel::toggleCompleted,
+                        shape = RoundedCornerShape(16.dp),
+                        modifier = Modifier.fillMaxWidth().height(52.dp)
+                    ) { Text("החזרה למשימות פעילות", style = MaterialTheme.typography.labelLarge, color = AccentPrimary) }
+                } else {
+                    Button(
+                        onClick = viewModel::toggleCompleted,
+                        colors = ButtonDefaults.buttonColors(containerColor = AccentPrimary),
+                        shape = RoundedCornerShape(16.dp),
+                        modifier = Modifier.fillMaxWidth().height(52.dp)
+                    ) {
+                        Icon(Icons.Filled.Check, contentDescription = null, modifier = Modifier.size(20.dp))
+                        Spacer(Modifier.width(8.dp))
+                        Text("סימון כבוצעה", style = MaterialTheme.typography.labelLarge)
+                    }
                 }
 
                 Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
@@ -141,7 +180,7 @@ fun TaskDetailScreen(
                     )
 
                     Button(
-                        onClick = { viewModel.passResponsibility(partnerId) },
+                        onClick = { viewModel.passResponsibility(partnerId, partnerName) },
                         enabled = !state.isSending,
                         colors = ButtonDefaults.buttonColors(containerColor = TextPrimary),
                         shape = RoundedCornerShape(16.dp),
@@ -166,6 +205,20 @@ fun TaskDetailScreen(
                 Spacer(Modifier.height(12.dp))
             }
         }
+    }
+
+    if (showDeleteConfirm) {
+        AlertDialog(
+            onDismissRequest = { showDeleteConfirm = false },
+            title = { Text("למחוק את המשימה?") },
+            text = { Text("המשימה תימחק לצמיתות אצל שניכם ולא ניתן יהיה לשחזר אותה.") },
+            confirmButton = {
+                TextButton(onClick = { showDeleteConfirm = false; viewModel.deleteTask() }, enabled = !state.isDeleting) {
+                    Text("מחיקה", color = UrgentText)
+                }
+            },
+            dismissButton = { TextButton(onClick = { showDeleteConfirm = false }) { Text("ביטול") } }
+        )
     }
 }
 

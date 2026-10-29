@@ -43,6 +43,13 @@ data class Task(
     val assigneeId: String? = null,
     val assigneeName: String? = null,
 
+    /** Who put the task on [assigneeId] (on creation, on an edit, or by passing it over)
+     *  and when. Every change to the assignee rewrites these, which is what tells the
+     *  assignee's phone "something new was assigned to you". */
+    val assignedBy: String? = null,
+    val assignedByName: String? = null,
+    val assignedAt: Date? = null,
+
     /** null = no fixed due date/time. Deliberately NOT @ServerTimestamp — that annotation
      *  would stamp "now" into every task written with a null value. */
     val dueAt: Date? = null,
@@ -51,6 +58,9 @@ data class Task(
     /** The (compressed) photo itself lives in households/{id}/images/{taskId}, not on the
      *  task, so the task list stays small — this flag says whether to go fetch it. */
     val hasImage: Boolean = false,
+    /** Changes whenever the photo is added, replaced or removed, so an open detail screen
+     *  knows to re-fetch it. */
+    val imageRev: Long = 0,
 
     val createdBy: String = "",
     val createdByName: String = "",

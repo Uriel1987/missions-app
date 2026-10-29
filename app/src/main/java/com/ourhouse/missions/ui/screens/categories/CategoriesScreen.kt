@@ -15,6 +15,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import com.ourhouse.missions.data.model.Task
 import com.ourhouse.missions.ui.components.CategoryChip
 import com.ourhouse.missions.ui.components.MissionsBottomNavBar
 import com.ourhouse.missions.ui.components.NavDestination
@@ -56,7 +57,7 @@ fun CategoriesScreen(
                     modifier = Modifier.fillMaxSize()
                 ) {
                     items(state.groups, key = { it.category?.key ?: it.customLabel ?: "none" }) { group ->
-                        CategoryGroupSection(group = group, onOpenTask = onOpenTask)
+                        CategoryGroupSection(group = group, onOpenTask = onOpenTask, onToggleDone = viewModel::toggleCompleted)
                     }
                 }
             }
@@ -65,7 +66,7 @@ fun CategoriesScreen(
 }
 
 @Composable
-private fun CategoryGroupSection(group: CategoryGroup, onOpenTask: (String) -> Unit) {
+private fun CategoryGroupSection(group: CategoryGroup, onOpenTask: (String) -> Unit, onToggleDone: (Task) -> Unit) {
     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
         Row(
             modifier = Modifier.fillMaxWidth(),
@@ -82,7 +83,7 @@ private fun CategoryGroupSection(group: CategoryGroup, onOpenTask: (String) -> U
 
         Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
             group.tasks.forEach { task ->
-                TaskCard(task = task, onClick = { onOpenTask(task.id) })
+                TaskCard(task = task, onClick = { onOpenTask(task.id) }, onToggleDone = { onToggleDone(task) })
             }
         }
     }

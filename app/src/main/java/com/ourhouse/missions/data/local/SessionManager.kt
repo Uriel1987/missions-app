@@ -20,8 +20,17 @@ class SessionManager(private val context: Context) {
 
     private val householdIdKey = stringPreferencesKey("household_id")
     private val displayNameKey = stringPreferencesKey("display_name")
+    private val backgroundWatchKey = booleanPreferencesKey("background_watch_enabled")
     private val baselinedKey = booleanPreferencesKey("notifications_baselined")
     private val notifiedKeysKey = stringSetPreferencesKey("notified_keys")
+
+    /** Whether the always-on background watcher (a foreground service) is wanted. On by default:
+     *  it's what makes assignment notifications arrive promptly with the app closed. */
+    val backgroundWatchEnabled: Flow<Boolean> = context.dataStore.data.map { it[backgroundWatchKey] != false }
+
+    suspend fun setBackgroundWatchEnabled(enabled: Boolean) {
+        context.dataStore.edit { it[backgroundWatchKey] = enabled }
+    }
 
     val householdId: Flow<String?> = context.dataStore.data.map { it[householdIdKey] }
     val displayName: Flow<String?> = context.dataStore.data.map { it[displayNameKey] }

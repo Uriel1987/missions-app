@@ -33,7 +33,7 @@ class ViewModelFactory(private val container: AppContainer) : ViewModelProvider.
                 container.householdRepository, container.authRepository, container.sessionManager
             ) as T
             CategoriesViewModel::class.java -> CategoriesViewModel(
-                container.taskRepository, container.sessionManager
+                container.taskRepository, container.authRepository, container.sessionManager
             ) as T
             else -> throw IllegalArgumentException("Unknown ViewModel: ${modelClass.name}")
         }
